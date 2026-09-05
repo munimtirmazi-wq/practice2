@@ -1,0 +1,489 @@
+
+<style>
+  :root { --accent: #185FA5; --accent-bg: #E6F1FB; --accent-text: #0C447C; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); }
+  .wrap { padding: 1rem 0 2rem; }
+  .header { margin-bottom: 1.5rem; }
+  .header h1 { font-size: 20px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+  .header p { font-size: 13px; color: var(--color-text-secondary); }
+  .progress-bar { background: var(--color-background-secondary); border-radius: 99px; height: 6px; margin: 12px 0 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.4s ease; }
+  .progress-label { font-size: 12px; color: var(--color-text-secondary); }
+  .day-block { margin-bottom: 1rem; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+  .day-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; background: var(--color-background-primary); user-select: none; }
+  .day-header:hover { background: var(--color-background-secondary); }
+  .day-badge { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 99px; background: var(--accent-bg); color: var(--accent-text); white-space: nowrap; }
+  .day-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); flex: 1; }
+  .day-meta { font-size: 12px; color: var(--color-text-secondary); }
+  .chevron { font-size: 12px; color: var(--color-text-tertiary); transition: transform 0.2s; }
+  .chevron.open { transform: rotate(90deg); }
+  .day-body { display: none; border-top: 0.5px solid var(--color-border-tertiary); }
+  .day-body.open { display: block; }
+  .task { border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .task:last-child { border-bottom: none; }
+  .task-header { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; cursor: pointer; }
+  .task-header:hover { background: var(--color-background-secondary); }
+  .task-check { width: 18px; height: 18px; border-radius: 4px; border: 0.5px solid var(--color-border-secondary); flex-shrink: 0; margin-top: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; background: transparent; }
+  .task-check.done { background: #1D9E75; border-color: #1D9E75; }
+  .task-info { flex: 1; }
+  .task-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 2px; }
+  .task-name.done { text-decoration: line-through; color: var(--color-text-secondary); }
+  .task-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+  .task-expand { font-size: 11px; color: var(--color-text-tertiary); transition: transform 0.2s; margin-top: 2px; }
+  .task-expand.open { transform: rotate(90deg); }
+  .task-body { display: none; padding: 0 16px 14px 44px; }
+  .task-body.open { display: block; }
+  .test-label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .test-case { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .test-num { font-size: 11px; font-weight: 500; color: var(--accent-text); background: var(--accent-bg); border-radius: 99px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .test-text { font-size: 12px; color: var(--color-text-primary); line-height: 1.6; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 500; margin-left: 6px; }
+  .tag-cmd { background: #EAF3DE; color: #3B6D11; }
+  .tag-verify { background: #FAEEDA; color: #633806; }
+  .tag-check { background: var(--accent-bg); color: var(--accent-text); }
+  .filter-row { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-btn { font-size: 12px; padding: 4px 12px; border-radius: 99px; border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+  .filter-btn.active { background: var(--accent-bg); color: var(--accent-text); border-color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <div class="header">
+    <h1>DevOps 7-Day practical task tracker</h1>
+    <p>Expand each task to see test cases. Check off tasks as you complete them.</p>
+    <div class="progress-bar"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+    <div class="progress-label" id="prog-label">0 of 35 tasks completed</div>
+  </div>
+
+  <div id="days"></div>
+</div>
+
+<script>
+const data = [
+  {
+    day: "Day 1",
+    title: "Containerization fundamentals",
+    tasks: [
+      {
+        name: "Compare VMs and containers",
+        desc: "Run a VM and a Docker container side-by-side; observe resource usage and startup time.",
+        tests: [
+          { text: "Check memory and CPU consumption of both using system tools — container should be significantly leaner." },
+          { text: "Measure boot time of VM vs container startup — container should start in under 2 seconds." },
+          { text: "Exec into the container and confirm it shares the host kernel (uname -r matches host)." }
+        ]
+      },
+      {
+        name: "Write a production-quality Dockerfile",
+        desc: "Create a Dockerfile for a simple web app using all core instructions: FROM, RUN, COPY, CMD, ENTRYPOINT.",
+        tests: [
+          { text: "Build succeeds with zero errors using docker build." },
+          { text: "Container runs and the app is reachable on the mapped port." },
+          { text: "docker inspect shows correct ENTRYPOINT and CMD values." },
+          { text: "Each RUN instruction is logically grouped to minimize layer count." }
+        ]
+      },
+      {
+        name: "Implement a multi-stage Docker build",
+        desc: "Convert the previous Dockerfile to a multi-stage build, separating build and runtime stages.",
+        tests: [
+          { text: "Final image size is at least 50% smaller than the single-stage equivalent." },
+          { text: "Build artifacts (e.g. compilers, dev dependencies) are not present in the final image." },
+          { text: "Running docker history shows fewer layers in the final stage." },
+          { text: "App still runs correctly from the leaner image." }
+        ]
+      },
+      {
+        name: "Configure Docker networking",
+        desc: "Create a custom bridge network and connect two containers so they communicate by name.",
+        tests: [
+          { text: "Both containers are on the same custom network (docker network inspect confirms this)." },
+          { text: "Container A can ping Container B using its name, not just its IP." },
+          { text: "Containers on the default bridge network cannot reach your custom network containers." }
+        ]
+      },
+      {
+        name: "Build a Docker Compose multi-service app",
+        desc: "Write a docker-compose.yml that defines at least a web service and a database service with a named volume.",
+        tests: [
+          { text: "docker compose up -d starts both services without errors." },
+          { text: "Web service can connect to the database using the service name as the hostname." },
+          { text: "Stopping and restarting the stack preserves data stored in the named volume." },
+          { text: "docker compose ps shows all services as running." }
+        ]
+      }
+    ]
+  },
+  {
+    day: "Day 2",
+    title: "Kubernetes local development with K3d",
+    tasks: [
+      {
+        name: "Create and manage a multi-node K3d cluster",
+        desc: "Set up a K3d cluster with at least 1 server and 2 agent nodes, and practice adding/removing a node.",
+        tests: [
+          { text: "kubectl get nodes shows all nodes in Ready state." },
+          { text: "After adding a node with k3d node add, it appears in kubectl get nodes within 30 seconds." },
+          { text: "After deleting a node, existing pods are rescheduled to remaining nodes." }
+        ]
+      },
+      {
+        name: "Deploy your containerized app to K3d",
+        desc: "Write Deployment and Service manifests for the app you containerized on Day 1.",
+        tests: [
+          { text: "kubectl get pods shows all pods in Running state." },
+          { text: "kubectl describe deployment shows correct replica count and image tag." },
+          { text: "App is reachable via kubectl port-forward." },
+          { text: "Deleting a pod manually causes a replacement to be created automatically." }
+        ]
+      },
+      {
+        name: "Explore kubectl troubleshooting commands",
+        desc: "Deliberately break a deployment (wrong image name) and use kubectl to diagnose and fix it.",
+        tests: [
+          { text: "kubectl describe pod clearly shows the ImagePullBackOff error reason." },
+          { text: "kubectl logs on a running pod returns application output." },
+          { text: "After fixing the image, kubectl rollout status shows successful rollout." }
+        ]
+      },
+      {
+        name: "Expose services with different types",
+        desc: "Create a ClusterIP, a NodePort, and a LoadBalancer service for the same deployment.",
+        tests: [
+          { text: "ClusterIP service is only reachable from within the cluster (exec into a pod to verify)." },
+          { text: "NodePort service is reachable from the host on the specified port." },
+          { text: "LoadBalancer service gets an EXTERNAL-IP assigned (K3d handles this)." },
+          { text: "kubectl get svc shows the correct TYPE for each service." }
+        ]
+      }
+    ]
+  },
+  {
+    day: "Day 3",
+    title: "Kubernetes workloads and storage",
+    tasks: [
+      {
+        name: "Deploy a StatefulSet with ordered pod management",
+        desc: "Deploy a 3-replica StatefulSet (e.g. a simple counter app) and observe its ordered startup and naming.",
+        tests: [
+          { text: "Pods are named with ordinal suffixes: app-0, app-1, app-2." },
+          { text: "Pods start in order — app-1 does not start until app-0 is Running." },
+          { text: "Deleting app-1 causes only app-1 to be recreated, not the others." }
+        ]
+      },
+      {
+        name: "Configure a DaemonSet",
+        desc: "Deploy a DaemonSet that runs a logging agent on every node in the cluster.",
+        tests: [
+          { text: "kubectl get daemonset shows DESIRED count equal to the number of nodes." },
+          { text: "Adding a new node to the cluster causes the DaemonSet pod to schedule on it automatically." },
+          { text: "Every node has exactly one DaemonSet pod running on it." }
+        ]
+      },
+      {
+        name: "Manage configuration with ConfigMaps and Secrets",
+        desc: "Create a ConfigMap for app config and a Secret for a DB password; mount both into a pod.",
+        tests: [
+          { text: "kubectl exec into the pod and verify the ConfigMap value is available as an env var or file." },
+          { text: "The Secret value is base64-encoded in kubectl get secret -o yaml but decoded correctly inside the pod." },
+          { text: "Updating the ConfigMap and restarting the pod reflects the new value inside." }
+        ]
+      },
+      {
+        name: "Attach persistent storage to a stateful pod",
+        desc: "Create a PersistentVolumeClaim and mount it into a pod; write a file, delete the pod, and verify data persists.",
+        tests: [
+          { text: "kubectl get pvc shows the claim in Bound state." },
+          { text: "Write a file inside the pod's mounted path, delete the pod, and confirm the file still exists after the pod restarts." },
+          { text: "kubectl describe pvc shows the correct StorageClass and access mode." }
+        ]
+      },
+      {
+        name: "Set up an Ingress controller and route traffic",
+        desc: "Install an Ingress controller in your K3d cluster and route two different hostnames to two different services.",
+        tests: [
+          { text: "curl with the correct Host header reaches the right backend service." },
+          { text: "A wrong or missing Host header returns a 404 from the Ingress, not the backend." },
+          { text: "kubectl describe ingress shows both rules and their backend services." }
+        ]
+      }
+    ]
+  },
+  {
+    day: "Day 4",
+    title: "Kubernetes security and Helm",
+    tasks: [
+      {
+        name: "Implement RBAC for a service account",
+        desc: "Create a ServiceAccount that can only list and get Pods in one namespace, nothing else.",
+        tests: [
+          { text: "kubectl auth can-i list pods --as=system:serviceaccount:ns:sa returns yes." },
+          { text: "kubectl auth can-i delete pods --as=system:serviceaccount:ns:sa returns no." },
+          { text: "Attempting to list Deployments using that ServiceAccount's token is denied." }
+        ]
+      },
+      {
+        name: "Apply Pod security contexts",
+        desc: "Configure a pod to run as a non-root user, with a read-only root filesystem, and no privilege escalation.",
+        tests: [
+          { text: "kubectl exec into the pod and confirm whoami returns a non-root user (uid ≠ 0)." },
+          { text: "Attempting to write to / inside the container fails with a read-only filesystem error." },
+          { text: "kubectl describe pod shows the securityContext values correctly set." }
+        ]
+      },
+      {
+        name: "Create and install a Helm chart",
+        desc: "Package your app from Day 2 as a Helm chart with a values.yaml exposing image tag and replica count.",
+        tests: [
+          { text: "helm lint produces no errors on your chart." },
+          { text: "helm install deploys the app successfully; kubectl get pods shows it running." },
+          { text: "helm upgrade with a different replica count value scales the deployment correctly." },
+          { text: "helm rollback restores the previous release state." }
+        ]
+      },
+      {
+        name: "Manage Helm releases across environments",
+        desc: "Create separate values files for dev and prod environments; deploy both releases in different namespaces.",
+        tests: [
+          { text: "helm list -A shows two releases in two separate namespaces." },
+          { text: "The prod release uses higher replica counts and resource limits than dev." },
+          { text: "helm uninstall on the dev release leaves the prod release untouched." }
+        ]
+      }
+    ]
+  },
+  {
+    day: "Day 5",
+    title: "CI/CD and GitOps",
+    tasks: [
+      {
+        name: "Build a GitHub Actions CI pipeline",
+        desc: "Create a workflow that runs on every push: lint, test, build Docker image, and push to a registry.",
+        tests: [
+          { text: "A push to the main branch triggers the workflow automatically." },
+          { text: "Introducing a syntax error in the code causes the lint step to fail and stops the pipeline." },
+          { text: "On success, the image appears in the container registry with the correct tag (e.g. the commit SHA)." },
+          { text: "The workflow completes in under 5 minutes for a small application." }
+        ]
+      },
+      {
+        name: "Install ArgoCD on your K3d cluster",
+        desc: "Deploy ArgoCD, expose its UI via port-forward, and log in with the initial admin password.",
+        tests: [
+          { text: "kubectl get pods -n argocd shows all ArgoCD pods in Running state." },
+          { text: "The ArgoCD UI is accessible in the browser via port-forward on port 8080." },
+          { text: "argocd app list (via CLI) returns successfully after login." }
+        ]
+      },
+      {
+        name: "Set up a GitOps application with ArgoCD",
+        desc: "Point an ArgoCD Application at a Git repo containing your Helm chart or manifests; enable auto-sync.",
+        tests: [
+          { text: "ArgoCD shows the app as Synced and Healthy in the UI." },
+          { text: "Pushing a change to the repo (e.g. bumping replica count) causes ArgoCD to automatically apply it to the cluster within 3 minutes." },
+          { text: "Manually editing a resource in the cluster is detected as OutOfSync and auto-corrected by ArgoCD." }
+        ]
+      },
+      {
+        name: "Implement the App of Apps pattern",
+        desc: "Create a root ArgoCD Application that manages two or more child Applications declaratively.",
+        tests: [
+          { text: "Deploying the root app causes all child apps to appear in the ArgoCD UI." },
+          { text: "Deleting a child app from Git causes ArgoCD to remove it from the cluster." },
+          { text: "Each child app has its own sync status visible independently." }
+        ]
+      }
+    ]
+  },
+  {
+    day: "Day 6",
+    title: "Infrastructure as code and monitoring",
+    tasks: [
+      {
+        name: "Write a Terraform module for a cloud resource",
+        desc: "Create a reusable module that provisions a storage bucket (or VM) with configurable variables and outputs.",
+        tests: [
+          { text: "terraform plan shows the expected resource creation with no errors." },
+          { text: "terraform apply creates the resource and outputs its name/URL." },
+          { text: "Changing a variable value and running terraform plan shows only the expected diff." },
+          { text: "terraform destroy removes all created resources cleanly." }
+        ]
+      },
+      {
+        name: "Manage Terraform state remotely",
+        desc: "Configure a remote backend (e.g. S3 or Terraform Cloud) and observe state locking.",
+        tests: [
+          { text: "terraform init migrates local state to the remote backend successfully." },
+          { text: "Running terraform plan from a second terminal while a plan is running shows a state lock error." },
+          { text: "The state file is not present locally after migration." }
+        ]
+      },
+      {
+        name: "Deploy Prometheus and Grafana using Helm",
+        desc: "Install the kube-prometheus-stack Helm chart on K3d and verify metrics are being collected.",
+        tests: [
+          { text: "kubectl get pods -n monitoring shows all Prometheus and Grafana pods Running." },
+          { text: "Access Grafana UI via port-forward; the default Kubernetes dashboards show node and pod metrics." },
+          { text: "The Prometheus targets page (port 9090) shows all targets as UP." }
+        ]
+      },
+      {
+        name: "Write a custom PromQL alert rule",
+        desc: "Define an alert that fires when a pod has restarted more than 3 times in the last 10 minutes.",
+        tests: [
+          { text: "The alert rule appears in the Prometheus UI under Alerts." },
+          { text: "Deliberately crash a pod repeatedly and confirm the alert transitions from Inactive → Pending → Firing." },
+          { text: "Alert contains meaningful labels (namespace, pod name) and a human-readable annotation." }
+        ]
+      },
+      {
+        name: "Build a Grafana dashboard from scratch",
+        desc: "Create a dashboard with at least 3 panels: CPU usage, memory usage, and pod restart count for your app.",
+        tests: [
+          { text: "All three panels display data without 'No data' errors." },
+          { text: "Changing the time range filter updates all panels consistently." },
+          { text: "Dashboard is exported as JSON and can be re-imported to recreate it." }
+        ]
+      }
+    ]
+  },
+  {
+    day: "Day 7",
+    title: "Advanced topics and interview prep",
+    tasks: [
+      {
+        name: "Install Istio and enable mTLS between services",
+        desc: "Deploy Istio on K3d, enable sidecar injection in a namespace, and verify mTLS is enforced between two services.",
+        tests: [
+          { text: "kubectl get pods shows an istio-proxy container alongside the app container (2/2 READY)." },
+          { text: "A PeerAuthentication policy set to STRICT causes plain HTTP between services to be rejected." },
+          { text: "Kiali or istioctl proxy-status shows all proxies are synced." }
+        ]
+      },
+      {
+        name: "Deploy a Kubernetes Operator (use an existing one)",
+        desc: "Install a well-known operator (e.g. cert-manager or postgres-operator) and provision a resource via its CRD.",
+        tests: [
+          { text: "kubectl get crd lists the custom resource types introduced by the operator." },
+          { text: "Creating a custom resource (e.g. a Certificate or Postgres) causes the operator to provision the real resource automatically." },
+          { text: "Deleting the custom resource causes the operator to clean up the provisioned resource." }
+        ]
+      },
+      {
+        name: "Debug five common failure scenarios",
+        desc: "Deliberately introduce each failure and practice diagnosing and resolving it using only kubectl.",
+        tests: [
+          { text: "CrashLoopBackOff — identify the root cause via kubectl logs and fix it." },
+          { text: "OOMKilled — confirm the reason in kubectl describe pod under Last State, then increase resource limits." },
+          { text: "Pending pod — diagnose using kubectl describe pod and identify whether it's a resource constraint or taint issue." },
+          { text: "ImagePullBackOff — fix by correcting the image tag or adding imagePullSecrets." },
+          { text: "Service not reachable — verify label selectors match between the Deployment and Service using kubectl get endpoints." }
+        ]
+      },
+      {
+        name: "Design a complete CI/CD system architecture",
+        desc: "On paper (or a diagram tool), design a pipeline for a 3-tier microservices app covering all environments.",
+        tests: [
+          { text: "Diagram includes: source control, CI (build/test/scan), registry, GitOps repo, ArgoCD, and target clusters." },
+          { text: "Separate environments (dev, staging, prod) are represented with promotion gates between them." },
+          { text: "Design addresses rollback strategy and secret management explicitly." },
+          { text: "You can verbally explain every component's role and the trade-offs of your choices." }
+        ]
+      }
+    ]
+  }
+];
+
+let checked = JSON.parse(localStorage.getItem('devops-tasks') || '{}');
+
+function save() {
+  try { localStorage.setItem('devops-tasks', JSON.stringify(checked)); } catch(e) {}
+}
+
+function updateProgress() {
+  let total = 0, done = 0;
+  data.forEach(d => d.tasks.forEach(t => { total++; if(checked[d.day+t.name]) done++; }));
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('prog').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = done + ' of ' + total + ' tasks completed';
+}
+
+function render() {
+  const container = document.getElementById('days');
+  container.innerHTML = '';
+
+  data.forEach((day, di) => {
+    const doneCount = day.tasks.filter(t => checked[day.day+t.name]).length;
+    const block = document.createElement('div');
+    block.className = 'day-block';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'day-header';
+    hdr.innerHTML = `<span class="day-badge">${day.day}</span><span class="day-title">${day.title}</span><span class="day-meta">${doneCount}/${day.tasks.length}</span><span class="chevron" id="chev-${di}">▶</span>`;
+
+    const body = document.createElement('div');
+    body.className = 'day-body';
+    body.id = 'body-' + di;
+
+    hdr.addEventListener('click', () => {
+      const open = body.classList.toggle('open');
+      document.getElementById('chev-'+di).classList.toggle('open', open);
+    });
+
+    day.tasks.forEach((task, ti) => {
+      const isDone = !!checked[day.day+task.name];
+      const taskEl = document.createElement('div');
+      taskEl.className = 'task';
+
+      const th = document.createElement('div');
+      th.className = 'task-header';
+      th.innerHTML = `
+        <div class="task-check ${isDone ? 'done' : ''}" id="chk-${di}-${ti}">${isDone ? '✓' : ''}</div>
+        <div class="task-info">
+          <div class="task-name ${isDone ? 'done' : ''}" id="tname-${di}-${ti}">${task.name}</div>
+          <div class="task-desc">${task.desc}</div>
+        </div>
+        <span class="task-expand" id="texp-${di}-${ti}">▶</span>`;
+
+      const tb = document.createElement('div');
+      tb.className = 'task-body';
+      tb.id = 'tbody-' + di + '-' + ti;
+
+      let testsHtml = '<div class="test-label">Test cases</div>';
+      task.tests.forEach((tc, i) => {
+        testsHtml += `<div class="test-case"><div class="test-num">${i+1}</div><div class="test-text">${tc.text}</div></div>`;
+      });
+      tb.innerHTML = testsHtml;
+
+      th.addEventListener('click', (e) => {
+        if(e.target.classList.contains('task-check')) {
+          const key = day.day + task.name;
+          checked[key] = !checked[key];
+          save();
+          e.target.classList.toggle('done', checked[key]);
+          e.target.textContent = checked[key] ? '✓' : '';
+          document.getElementById('tname-'+di+'-'+ti).classList.toggle('done', checked[key]);
+          const doneNow = day.tasks.filter(t => checked[day.day+t.name]).length;
+          hdr.querySelector('.day-meta').textContent = doneNow + '/' + day.tasks.length;
+          updateProgress();
+          return;
+        }
+        const open = tb.classList.toggle('open');
+        document.getElementById('texp-'+di+'-'+ti).classList.toggle('open', open);
+      });
+
+      taskEl.appendChild(th);
+      taskEl.appendChild(tb);
+      body.appendChild(taskEl);
+    });
+
+    block.appendChild(hdr);
+    block.appendChild(body);
+    container.appendChild(block);
+  });
+
+  updateProgress();
+}
+
+render();
+</script>
