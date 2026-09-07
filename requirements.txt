@@ -10,3 +10,4 @@ fastapi-cache2==0.2.2
 slowapi==0.1.10
 python-multipart==0.0.20
 psycopg[binary]==3.3.4
+redis
