@@ -1,0 +1,132 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail-clusterrole
+rules:
+  - apiGroups: [""]
+    resources:
+    - nodes
+    - nodes/proxy
+    - services
+    - endpoints
+    - pods
+    verbs: ["get", "watch", "list"]
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail-serviceaccount
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail-clusterrolebinding
+subjects:
+  - kind: ServiceAccount
+    name: promtail-serviceaccount
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: promtail-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: default
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      # This URL assumes you have Loki running in your cluster.
+      # If your Loki service has a different name or namespace, update this URL.
+      - url: http://loki:3100/loki/api/v1/push
+
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_namespace
+            target_label: namespace
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_name
+            target_label: pod
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_container_name
+            target_label: container
+          - replacement: /var/log/pods/*$1/*.log
+            separator: /
+            source_labels:
+              - __meta_kubernetes_pod_uid
+              - __meta_kubernetes_pod_container_name
+            target_label: __path__
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail-daemonset
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      name: promtail
+  template:
+    metadata:
+      labels:
+        name: promtail
+    spec:
+      serviceAccountName: promtail-serviceaccount
+      containers:
+        - name: promtail
+          image: grafana/promtail:latest
+          args:
+            - -config.file=/etc/promtail/promtail.yaml
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log
+            - name: pods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: docker
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: promtail-config
+              mountPath: /etc/promtail
+      volumes:
+        - name: logs
+          hostPath:
+            path: /var/log
+        - name: pods
+          hostPath:
+            path: /var/log/pods
+        - name: docker
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: promtail-config
+          configMap:
+            name: promtail-config

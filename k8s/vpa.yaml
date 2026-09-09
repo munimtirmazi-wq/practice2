@@ -1,0 +1,20 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: practice-api-vpa
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind:       Deployment
+    name:       practice-api
+  updatePolicy:
+    updateMode: "Auto" # "Auto" means VPA will automatically restart pods with new CPU/Memory limits. "Off" means it just recommends changes.
+  resourcePolicy:
+    containerPolicies:
+      - containerName: '*'
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 1000m
+          memory: 1024Mi
